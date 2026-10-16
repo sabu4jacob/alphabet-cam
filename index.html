@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alphabet Water-Sink Video Studio</title>
+  <style>
+    :root {
+      --bg: #080a0f;
+      --card: #121622;
+      --accent: #6366f1;
+      --accent-hover: #4f46e5;
+      --danger: #ef4444;
+      --success: #10b981;
+      --text: #f3f4f6;
+      --text-dim: #9ca3af;
+      --border: #222a3d;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      background: linear-gradient(135deg, #38bdf8, #818cf8, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 6px;
+    }
+
+    header p {
+      color: var(--text-dim);
+      font-size: 0.95rem;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 960px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .controls-panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 10px 18px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .btn:hover:not(:disabled) {
+      background: var(--accent-hover);
+      transform: translateY(-1px);
+    }
+
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .btn-record {
+      background: var(--danger);
+    }
+    .btn-record:hover:not(:disabled) {
+      background: #dc2626;
+    }
+
+    .btn-download {
+      background: var(--success);
+    }
+    .btn-download:hover:not(:disabled) {
+      background: #059669;
+    }
+
+    .status-text {
+      font-size: 0.88rem;
+      color: var(--text-dim);
+    }
+
+    .progress-track {
+      width: 100%;
+      background: #090c13;
+      border-radius: 6px;
+      overflow: hidden;
+      height: 8px;
+      border: 1px solid var(--border);
+      display: none;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #38bdf8, #818cf8, #10b981);
+      transition: width 0.08s linear;
+    }
+
+    .viewport-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      width: 100%;
+    }
+
+    @media (max-width: 720px) {
+      .viewport-grid { grid-template-columns: 1fr; }
+    }
+
+    .viewport-box {
+      background: #05070c;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 340px;
+      position: relative;
+    }
+
+    .viewport-box h3 {
+      position: absolute;
+      top: 10px;
+      left: 12px;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-dim);
+      background: rgba(18, 22, 34, 0.85);
+      padding: 3px 8px;
+      border-radius: 4px;
+      z-index: 2;
+    }
+
+    video, canvas {
+      width: 100%;
+      max-height: 340px;
+      border-radius: 8px;
+      object-fit: cover;
+    }
+
+    #camPreview {
+      transform: scaleX(-1);
+    }
+
+    #scratchVideo {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Alphabet Water-Sink Studio</h1>
+    <p>Records 5s &rarr; Floating water letters sink down, turning the transparent frame into a full alphabet video (10s total).</p>
+  </header>
+
+  <div class="container">
+    <div class="controls-panel">
+      <div class="btn-group">
+        <button id="camBtn" class="btn">📹 Start Camera</button>
+        <button id="convertBtn" class="btn btn-record" disabled>🔴 Record 5s & Convert</button>
+        <a id="downloadBtn" class="btn btn-download" style="display: none;" download="alphabet_water_reveal_10s.webm">💾 Download 10s Alphabet Video</a>
+      </div>
+
+      <div class="status-text" id="statusLabel">Click "Start Camera" to initialize</div>
+
+      <div class="progress-track" id="progressWrapper">
+        <div class="progress-fill" id="progressBar"></div>
+      </div>
+    </div>
+
+    <div class="viewport-grid">
+      <!-- Live Camera / Live Renderer Viewport -->
+      <div class="viewport-box">
+        <h3 id="stageTitle">Live Camera</h3>
+        <video id="camPreview" autoplay playsinline muted></video>
+        <canvas id="stageCanvas" style="display: none;"></canvas>
+      </div>
+
+      <!-- Result 10-Second Output Video -->
+      <div class="viewport-box">
+        <h3>10s Alphabet Video Output</h3>
+        <video id="outputVid" controls autoplay loop playsinline></video>
+        <span id="outputNotice" style="color: var(--text-dim); font-size: 0.85rem;">Result appears here immediately after rendering</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden elements for sampling and video processing -->
+  <video id="scratchVideo" playsinline muted></video>
+
+  <script>
+    const camBtn = document.getElementById('camBtn');
+    const convertBtn = document.getElementById('convertBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const statusLabel = document.getElementById('statusLabel');
+    const progressWrapper = document.getElementById('progressWrapper');
+    const progressBar = document.getElementById('progressBar');
+
+    const camPreview = document.getElementById('camPreview');
+    const scratchVideo = document.getElementById('scratchVideo');
+    const stageCanvas = document.getElementById('stageCanvas');
+    const ctx = stageCanvas.getContext('2d', { willReadFrequently: true });
+    const outputVid = document.getElementById('outputVid');
+    const outputNotice = document.getElementById('outputNotice');
+    const stageTitle = document.getElementById('stageTitle');
+
+    // Offscreen canvas for color sampling downsampled frames
+    const sampleCanvas = document.createElement('canvas');
+    const sampleCtx = sampleCanvas.getContext('2d', { willReadFrequently: true });
+
+    let mediaStream = null;
+    let camRecorder = null;
+    let recordedClips = [];
+    const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const CELL_SIZE = 10; // Character grid cell size
+
+    // 1. Initialize Device Camera
+    camBtn.addEventListener('click', async () => {
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 640, height: 480, frameRate: 30 },
+          audio: false
+        });
+        camPreview.srcObject = mediaStream;
+        camBtn.disabled = true;
+        convertBtn.disabled = false;
+        statusLabel.textContent = "Camera ready. Click 'Record 5s & Convert'!";
+      } catch (err) {
+        alert("Camera error: " + err.message);
+        statusLabel.textContent = "Camera permission denied.";
+      }
+    });
+
+    // 2. Record 5 Seconds of Video
+    convertBtn.addEventListener('click', () => {
+      convertBtn.disabled = true;
+      downloadBtn.style.display = 'none';
+      outputVid.style.display = 'none';
+      outputNotice.style.display = 'block';
+      outputNotice.textContent = "Recording 5s from camera...";
+      progressWrapper.style.display = 'block';
+      progressBar.style.width = '0%';
+
+      recordedClips = [];
+      const mimeTypes = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm', 'video/mp4'];
+      const chosenMime = mimeTypes.find(t => MediaRecorder.isTypeSupported(t)) || '';
+
+      camRecorder = new MediaRecorder(mediaStream, chosenMime ? { mimeType: chosenMime } : undefined);
+
+      camRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) recordedClips.push(e.data);
+      };
+
+      camRecorder.onstop = () => {
+        const clipBlob = new Blob(recordedClips, { type: chosenMime || 'video/webm' });
+        scratchVideo.src = URL.createObjectURL(clipBlob);
+        scratchVideo.onloadeddata = () => {
+          renderAlphabetWaterSequence(chosenMime);
+        };
+      };
+
+      camRecorder.start();
+      let remaining = 5.0;
+
+      const timer = setInterval(() => {
+        remaining -= 0.1;
+        const pct = ((5.0 - remaining) / 5.0) * 100;
+        progressBar.style.width = `${Math.min(100, pct)}%`;
+        statusLabel.textContent = `Recording camera: ${Math.max(0, remaining).toFixed(1)}s left...`;
+
+        if (remaining <= 0) {
+          clearInterval(timer);
+          camRecorder.stop();
+        }
+      }, 100);
+    });
+
+    // 3. Render 10-Second Transition & Alphabet Video
+    function renderAlphabetWaterSequence(mimeType) {
+      camPreview.style.display = 'none';
+      stageCanvas.style.display = 'block';
+      stageTitle.textContent = "Generating Alphabet Video...";
+
+      const W = scratchVideo.videoWidth || 640;
+      const H = scratchVideo.videoHeight || 480;
+      stageCanvas.width = W;
+      stageCanvas.height = H;
+
+      const cols = Math.floor(W / CELL_SIZE);
+      const rows = Math.floor(H / CELL_SIZE);
+      sampleCanvas.width = cols;
+      sampleCanvas.height = rows;
+
+      // Generate a static matrix of letters for smooth consistent video pixels
+      const gridMatrix = [];
+      for (let r = 0; r < rows; r++) {
+        gridMatrix[r] = [];
+        for (let c = 0; c < cols; c++) {
+          gridMatrix[r][c] = ALPHABET[Math.floor(Math.random() * ALPHABET.length)];
+        }
+      }
+
+      // Generate floating surface water letters
+      const numFloaters = 280;
+      const floaters = [];
+      for (let i = 0; i < numFloaters; i++) {
+        floaters.push({
+          char: ALPHABET[Math.floor(Math.random() * ALPHABET.length)],
+          x: Math.random() * W,
+          yOffset: (Math.random() - 0.5) * 25,
+          speed: 1.2 + Math.random() * 2.0,
+          amp: 4 + Math.random() * 10,
+          phase: Math.random() * Math.PI * 2,
+          size: 10 + Math.random() * 6
+        });
+      }
+
+      // Play 5s video across 10 seconds smoothly at half speed
+      scratchVideo.playbackRate = 0.5;
+      scratchVideo.currentTime = 0;
+      scratchVideo.play();
+
+      const outStream = stageCanvas.captureStream(30);
+      const outRecorder = new MediaRecorder(outStream, mimeType ? { mimeType } : undefined);
+      const outChunks = [];
+
+      outRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) outChunks.push(e.data);
+      };
+
+      outRecorder.onstop = () => {
+        const outBlob = new Blob(outChunks, { type: mimeType || 'video/webm' });
+        const finalUrl = URL.createObjectURL(outBlob);
+
+        // Display 10s alphabet video output immediately
+        outputVid.src = finalUrl;
+        outputVid.style.display = 'block';
+        outputNotice.style.display = 'none';
+        downloadBtn.href = finalUrl;
+        downloadBtn.style.display = 'inline-flex';
+
+        // Reset stage
+        camPreview.style.display = 'block';
+        stageCanvas.style.display = 'none';
+        stageTitle.textContent = "Live Camera";
+        convertBtn.disabled = false;
+        progressWrapper.style.display = 'none';
+        statusLabel.textContent = "Complete! Converted 10s alphabet video ready.";
+      };
+
+      outRecorder.start();
+
+      const startTime = performance.now();
+      const TOTAL_MS = 10000; // 10.0 seconds exact duration
+
+      function frameLoop(now) {
+        const elapsed = now - startTime;
+        const t = Math.min(elapsed / 1000, 10.0);
+
+        // Sample current video frame colors down to character grid
+        sampleCtx.drawImage(scratchVideo, 0, 0, cols, rows);
+        const imgData = sampleCtx.getImageData(0, 0, cols, rows).data;
+
+        // Base background: sleek dark theme
+        ctx.fillStyle = '#06070a';
+        ctx.fillRect(0, 0, W, H);
+
+        // --- PHASES TIMELINE ---
+        // 0.0s - 2.5s: Letters float on water near top (y ~ 14% H) over transparent starting video
+        // 2.5s - 6.0s: Water line sinks down from 14% H to beyond H, turning passed rows into alphabet mosaic
+        // 6.0s - 10.0s: Sinking complete -> 100% full alphabet mosaic video
+        let sinkProgress = 0;
+        if (t >= 2.5 && t <= 6.0) {
+          sinkProgress = (t - 2.5) / 3.5;
+        } else if (t > 6.0) {
+          sinkProgress = 1.0;
+        }
+
+        // Current sinking water level Y coordinate
+        const initialWaterY = H * 0.14;
+        const currentWaterY = initialWaterY + sinkProgress * (H * 1.05);
+
+        // 1. Draw Transparent Original Video Background (only visible below the sinking water line)
+        if (sinkProgress < 1.0) {
+          ctx.save();
+          // Transparent initial image opacity (fades out as water sinks)
+          ctx.globalAlpha = 0.22 * (1.0 - sinkProgress * 0.5);
+          ctx.drawImage(scratchVideo, 0, 0, W, H);
+          ctx.restore();
+        }
+
+        // 2. Render Alphabet Mosaic Grid
+        ctx.font = `bold ${CELL_SIZE}px "Courier New", monospace`;
+        ctx.textBaseline = 'top';
+
+        for (let r = 0; r < rows; r++) {
+          const cellY = r * CELL_SIZE;
+
+          // Only render alphabet characters if the sinking water has reached or passed this row
+          if (cellY <= currentWaterY) {
+            for (let c = 0; c < cols; c++) {
+              const cellX = c * CELL_SIZE;
+              const idx = (r * cols + c) * 4;
+              const red = imgData[idx];
+              const green = imgData[idx + 1];
+              const blue = imgData[idx + 2];
+
+              // Skip pitch-dark pixels to maintain contrast
+              if (red < 15 && green < 15 && blue < 15) continue;
+
+              ctx.fillStyle = `rgb(${red},${green},${blue})`;
+              ctx.fillText(gridMatrix[r][c], cellX, cellY);
+            }
+          }
+        }
+
+        // 3. Render Imaginary Water Waves and Floating Letters (Active during float & sinking phases)
+        if (sinkProgress < 1.0) {
+          const waveTime = t * 4.0;
+
+          // Water wave curve
+          ctx.beginPath();
+          ctx.moveTo(0, currentWaterY);
+          for (let x = 0; x <= W; x += 15) {
+            const wave = Math.sin(x * 0.025 + waveTime) * 6 + Math.cos(x * 0.045 - waveTime * 0.7) * 4;
+            ctx.lineTo(x, currentWaterY + wave);
+          }
+          ctx.lineTo(W, currentWaterY + 30);
+          ctx.lineTo(0, currentWaterY + 30);
+          ctx.closePath();
+
+          // Translucent water crest highlight
+          ctx.fillStyle = "rgba(56, 189, 248, 0.2)";
+          ctx.fill();
+
+          // Render bobbing surface letters floating on imaginary water
+          ctx.textBaseline = 'middle';
+          ctx.textAlign = 'center';
+
+          for (let i = 0; i < floaters.length; i++) {
+            const f = floaters[i];
+            const waveY = Math.sin(f.x * 0.03 + waveTime + f.phase) * 6;
+            const floaterX = f.x + Math.sin(f.phase + t * f.speed) * f.amp;
+            const floaterY = currentWaterY + f.yOffset + waveY;
+
+            if (floaterY > 0 && floaterY < H + 20) {
+              ctx.font = `bold ${f.size}px "Courier New", monospace`;
+              ctx.fillStyle = "#ffffff";
+              ctx.shadowColor = "#38bdf8";
+              ctx.shadowBlur = 8;
+              ctx.fillText(f.char, floaterX, floaterY);
+            }
+          }
+          ctx.shadowBlur = 0;
+        }
+
+        // Update progress bar
+        const progressPct = (t / 10.0) * 100;
+        progressBar.style.width = `${progressPct}%`;
+        statusLabel.textContent = `Rendering: ${t.toFixed(1)}s / 10.0s (${progressPct.toFixed(0)}%)`;
+
+        if (t < 10.0) {
+          requestAnimationFrame(frameLoop);
+        } else {
+          scratchVideo.pause();
+          outRecorder.stop();
+        }
+      }
+
+      requestAnimationFrame(frameLoop);
+    }
+  </script>
+</body>
+</html>
